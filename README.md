@@ -41,4 +41,4 @@ Create a task via `POST /tasks`, restart the server, then `GET /tasks`. The new 
 
 ## Swagger UI
 
-![Swagger UI](swagger-screenshot.png)
+![Swagger UI](task-api.png)
