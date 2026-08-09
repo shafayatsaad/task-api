@@ -45,8 +45,8 @@ def initialize_database():
     connection.commit()
 
     count = connection.execute(
-        "SELECT COUNT(*) FROM tasks"
-    ).fetchone()[0]
+        "SELECT COUNT(*) AS count FROM tasks"
+    ).fetchone()["count"]
 
     if count == 0:
         with connection.cursor() as cursor:
