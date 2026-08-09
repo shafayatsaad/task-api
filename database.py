@@ -1,13 +1,25 @@
-import sqlite3
-from pathlib import Path
+"""
+Database connection module for PostgreSQL.
 
-DATABASE_PATH = Path(__file__).parent / "tasks.db"
+Connection is configured via the DATABASE_URL environment variable.
+"""
+
+import os
+
+from dotenv import load_dotenv
+import psycopg
+
+load_dotenv()
+
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql://postgres:dev@localhost:5432/tasks",
+)
 
 
 def get_connection():
-    connection = sqlite3.connect(DATABASE_PATH)
-    connection.row_factory = sqlite3.Row
-    return connection
+    """Return a new PostgreSQL connection."""
+    return psycopg.connect(DATABASE_URL)
 
 
 def initialize_database():
@@ -22,9 +34,9 @@ def initialize_database():
     connection.execute(
         """
         CREATE TABLE IF NOT EXISTS tasks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
             title TEXT NOT NULL,
-            done BOOLEAN NOT NULL DEFAULT 0
+            done BOOLEAN NOT NULL DEFAULT FALSE
         )
         """
     )
@@ -39,7 +51,7 @@ def initialize_database():
         connection.executemany(
             """
             INSERT INTO tasks (title, done)
-            VALUES (?, ?)
+            VALUES (%s, %s)
             """,
             [
                 ("Buy milk", False),
@@ -54,7 +66,7 @@ def initialize_database():
 
 
 def row_to_task(row):
-    """Convert a SQLite row into a normal Python dictionary."""
+    """Convert a PostgreSQL row into a normal Python dictionary."""
     if row is None:
         return None
 
