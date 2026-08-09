@@ -48,17 +48,18 @@ def initialize_database():
     ).fetchone()[0]
 
     if count == 0:
-        connection.executemany(
-            """
-            INSERT INTO tasks (title, done)
-            VALUES (%s, %s)
-            """,
-            [
-                ("Buy milk", False),
-                ("Walk the dog", True),
-                ("Finish CRUD assignment", False),
-            ],
-        )
+        with connection.cursor() as cursor:
+            cursor.executemany(
+                """
+                INSERT INTO tasks (title, done)
+                VALUES (%s, %s)
+                """,
+                [
+                    ("Buy milk", False),
+                    ("Walk the dog", True),
+                    ("Finish CRUD assignment", False),
+                ],
+            )
 
         connection.commit()
 
