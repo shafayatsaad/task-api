@@ -1,43 +1,77 @@
 # Task API
 
-A small in-memory CRUD API for managing a to-do list. Built with FastAPI for the FlyRank Backend Internship — Week 2 Assignment.
+A small SQLite-backed CRUD API built with FastAPI.
 
-## Run it
+## Tech Stack
+
+- Python
+- FastAPI
+- SQLite
+- Uvicorn
+
+## Database
+
+This project uses SQLite for persistent task storage.
+
+The database file is:
+
+`tasks.db`
+
+It is created automatically when the application starts.
+
+The `tasks` table contains:
+
+| Column | Type    | Description       |
+| ------ | ------- | ----------------- |
+| id     | INTEGER | Primary key       |
+| title  | TEXT    | Task title        |
+| done   | BOOLEAN | Completion status |
+
+The application automatically inserts three example tasks only when the database is empty.
+
+## Run the Project
+
+Install dependencies:
 
 ```bash
-pip install fastapi uvicorn
+pip install -r requirements.txt
+```
+
+Start the server:
+
+```bash
 uvicorn main:app --reload
 ```
 
-Then visit `http://localhost:8000/docs` for Swagger UI.
+Open Swagger:
 
-## Endpoints
+[http://localhost:8000/docs](http://localhost:8000/docs)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/` | API info |
-| GET | `/health` | Health check |
-| GET | `/tasks` | List all tasks (optional: `?done=true`, `?search=milk`) |
-| GET | `/tasks/{id}` | Get one task |
-| POST | `/tasks` | Create a task |
-| PUT | `/tasks/{id}` | Update a task |
-| DELETE | `/tasks/{id}` | Delete a task |
-| GET | `/stats` | Task statistics |
-| POST | `/reset` | Reset to the 3 example tasks |
+## API Endpoints
 
-## Example curl output
+| Method | Endpoint      | Description         |
+| ------ | ------------- | ------------------- |
+| GET    | `/`           | API information     |
+| GET    | `/health`     | Health check        |
+| GET    | `/tasks`      | List tasks          |
+| POST   | `/tasks`      | Create task         |
+| GET    | `/tasks/{id}` | Get task            |
+| PUT    | `/tasks/{id}` | Update task         |
+| DELETE | `/tasks/{id}` | Delete task         |
+| GET    | `/stats`      | Task statistics     |
+| POST   | `/reset`      | Reset example tasks |
 
-```bash
-$ curl -i http://localhost:8000/tasks/1
-HTTP/1.1 200 OK
-content-type: application/json
+## Example SQL
 
-{"id":1,"title":"Buy milk","done":false}
+```sql
+SELECT * FROM tasks;
 ```
 
-## The Mortality Experiment
+This query returns all tasks stored in the SQLite database.
 
-Create a task via `POST /tasks`, restart the server, then `GET /tasks`. The new task disappears and only the 3 original tasks remain. This happens because data lives only in memory (a Python list variable). When the program stops, the variable is wiped. This is exactly why real applications use databases.
+## Persistence
+
+Unlike the original in-memory implementation, tasks now survive server restarts because they are stored in `tasks.db`.
 
 ## Swagger UI
 
