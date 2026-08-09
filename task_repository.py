@@ -18,11 +18,11 @@ def get_all_tasks(done=None, search=None):
     parameters = []
 
     if done is not None:
-        conditions.append("done = ?")
-        parameters.append(int(done))
+        conditions.append("done = %s")
+        parameters.append(bool(done))
 
     if search:
-        conditions.append("LOWER(title) LIKE LOWER(?)")
+        conditions.append("LOWER(title) LIKE LOWER(%s)")
         parameters.append(f"%{search}%")
 
     if conditions:
@@ -45,7 +45,7 @@ def get_task(task_id):
         """
         SELECT id, title, done
         FROM tasks
-        WHERE id = ?
+        WHERE id = %s
         """,
         (task_id,),
     ).fetchone()
@@ -59,26 +59,16 @@ def create_task(title):
     """Insert a new task and return it."""
     connection = get_connection()
 
-    cursor = connection.execute(
-        """
-        INSERT INTO tasks (title, done)
-        VALUES (?, ?)
-        """,
-        (title, False),
-    )
-
-    connection.commit()
-
-    new_id = cursor.lastrowid
-
     row = connection.execute(
         """
-        SELECT id, title, done
-        FROM tasks
-        WHERE id = ?
+        INSERT INTO tasks (title, done)
+        VALUES (%s, %s)
+        RETURNING id, title, done
         """,
-        (new_id,),
+        (title, False),
     ).fetchone()
+
+    connection.commit()
 
     connection.close()
 
@@ -97,7 +87,7 @@ def update_task(task_id, title=None, done=None):
         """
         SELECT id, title, done
         FROM tasks
-        WHERE id = ?
+        WHERE id = %s
         """,
         (task_id,),
     ).fetchone()
@@ -111,12 +101,12 @@ def update_task(task_id, title=None, done=None):
     parameters = []
 
     if title is not None:
-        fields.append("title = ?")
+        fields.append("title = %s")
         parameters.append(title)
 
     if done is not None:
-        fields.append("done = ?")
-        parameters.append(int(done))
+        fields.append("done = %s")
+        parameters.append(bool(done))
 
     # If the request contains no fields, return the existing task.
     if fields:
@@ -125,7 +115,7 @@ def update_task(task_id, title=None, done=None):
         query = f"""
             UPDATE tasks
             SET {", ".join(fields)}
-            WHERE id = ?
+            WHERE id = %s
         """
 
         connection.execute(query, parameters)
@@ -135,7 +125,7 @@ def update_task(task_id, title=None, done=None):
         """
         SELECT id, title, done
         FROM tasks
-        WHERE id = ?
+        WHERE id = %s
         """,
         (task_id,),
     ).fetchone()
@@ -152,7 +142,7 @@ def delete_task(task_id):
     cursor = connection.execute(
         """
         DELETE FROM tasks
-        WHERE id = ?
+        WHERE id = %s
         """,
         (task_id,),
     )
@@ -174,7 +164,7 @@ def get_stats():
         """
         SELECT
             COUNT(*) AS total,
-            COALESCE(SUM(CASE WHEN done = 1 THEN 1 ELSE 0 END), 0) AS done
+            COALESCE(SUM(CASE WHEN done = TRUE THEN 1 ELSE 0 END), 0) AS done
         FROM tasks
         """
     ).fetchone()
@@ -200,7 +190,7 @@ def reset_tasks():
     connection.executemany(
         """
         INSERT INTO tasks (title, done)
-        VALUES (?, ?)
+        VALUES (%s, %s)
         """,
         [
             ("Buy milk", False),
