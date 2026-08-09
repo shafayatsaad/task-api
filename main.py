@@ -87,7 +87,7 @@ def health_check():
 
 
 # ---------------------------------------------------------------------------
-# READ — now backed by SQLite
+# READ — backed by SQLite
 # ---------------------------------------------------------------------------
 
 @app.get("/tasks", summary="List tasks (optionally filter/search)")
@@ -154,7 +154,41 @@ def get_task(task_id: int):
 
 
 # ---------------------------------------------------------------------------
-# CREATE / UPDATE / DELETE — still in-memory for now
+# CREATE — backed by SQLite
+# ---------------------------------------------------------------------------
+
+@app.post("/tasks", status_code=201, summary="Create a task")
+def create_task(task: TaskCreate):
+    connection = get_connection()
+
+    cursor = connection.execute(
+        """
+        INSERT INTO tasks (title, done)
+        VALUES (?, ?)
+        """,
+        (task.title, False),
+    )
+
+    connection.commit()
+
+    new_id = cursor.lastrowid
+
+    row = connection.execute(
+        """
+        SELECT id, title, done
+        FROM tasks
+        WHERE id = ?
+        """,
+        (new_id,),
+    ).fetchone()
+
+    connection.close()
+
+    return row_to_task(row)
+
+
+# ---------------------------------------------------------------------------
+# UPDATE / DELETE — still in-memory for now
 # ---------------------------------------------------------------------------
 
 tasks = [
@@ -163,15 +197,6 @@ tasks = [
     {"id": 3, "title": "Finish CRUD assignment", "done": False},
 ]
 next_id = 4
-
-
-@app.post("/tasks", status_code=201, summary="Create a task")
-def create_task(task: TaskCreate):
-    global next_id
-    new_task = {"id": next_id, "title": task.title, "done": False}
-    tasks.append(new_task)
-    next_id += 1
-    return new_task
 
 
 @app.put("/tasks/{task_id}", summary="Update a task")
@@ -225,18 +250,39 @@ def get_stats():
 
 
 # ---------------------------------------------------------------------------
-# BONUS: Reset
+# BONUS: Reset — reset both the DB and the in-memory list
 # ---------------------------------------------------------------------------
 
 @app.post("/reset", summary="Reset to the 3 example tasks")
 def reset_tasks():
     global tasks, next_id
+
+    connection = get_connection()
+
+    connection.execute("DELETE FROM tasks")
+
+    connection.executemany(
+        """
+        INSERT INTO tasks (title, done)
+        VALUES (?, ?)
+        """,
+        [
+            ("Buy milk", False),
+            ("Walk the dog", True),
+            ("Finish CRUD assignment", False),
+        ],
+    )
+
+    connection.commit()
+    connection.close()
+
     tasks = [
         {"id": 1, "title": "Buy milk", "done": False},
         {"id": 2, "title": "Walk the dog", "done": True},
         {"id": 3, "title": "Finish CRUD assignment", "done": False},
     ]
     next_id = 4
+
     return {"message": "Tasks reset to the 3 example tasks"}
 
 
