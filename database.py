@@ -8,6 +8,7 @@ import os
 
 from dotenv import load_dotenv
 import psycopg
+from psycopg.rows import dict_row
 
 load_dotenv()
 
@@ -19,7 +20,7 @@ DATABASE_URL = os.environ.get(
 
 def get_connection():
     """Return a new PostgreSQL connection."""
-    return psycopg.connect(DATABASE_URL)
+    return psycopg.connect(DATABASE_URL, row_factory=dict_row)
 
 
 def initialize_database():
