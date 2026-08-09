@@ -17,7 +17,8 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, field_validator
 
-from database import get_connection, initialize_database, row_to_task
+from database import initialize_database
+import task_repository
 
 
 app = FastAPI(
@@ -102,55 +103,20 @@ def list_tasks(
     - done=true/false -> only completed/unfinished tasks
     - search=word     -> tasks whose title contains the word
     """
-
-    connection = get_connection()
-
-    query = "SELECT id, title, done FROM tasks"
-    conditions = []
-    parameters = []
-
-    if done is not None:
-        conditions.append("done = ?")
-        parameters.append(int(done))
-
-    if search:
-        conditions.append("LOWER(title) LIKE LOWER(?)")
-        parameters.append(f"%{search}%")
-
-    if conditions:
-        query += " WHERE " + " AND ".join(conditions)
-
-    query += " ORDER BY id"
-
-    rows = connection.execute(query, parameters).fetchall()
-
-    connection.close()
-
-    return [row_to_task(row) for row in rows]
+    return task_repository.get_all_tasks(done=done, search=search)
 
 
 @app.get("/tasks/{task_id}", summary="Get one task")
 def get_task(task_id: int):
-    connection = get_connection()
+    task = task_repository.get_task(task_id)
 
-    row = connection.execute(
-        """
-        SELECT id, title, done
-        FROM tasks
-        WHERE id = ?
-        """,
-        (task_id,),
-    ).fetchone()
-
-    connection.close()
-
-    if row is None:
+    if task is None:
         raise HTTPException(
             status_code=404,
             detail=f"Task {task_id} not found",
         )
 
-    return row_to_task(row)
+    return task
 
 
 # ---------------------------------------------------------------------------
@@ -159,32 +125,7 @@ def get_task(task_id: int):
 
 @app.post("/tasks", status_code=201, summary="Create a task")
 def create_task(task: TaskCreate):
-    connection = get_connection()
-
-    cursor = connection.execute(
-        """
-        INSERT INTO tasks (title, done)
-        VALUES (?, ?)
-        """,
-        (task.title, False),
-    )
-
-    connection.commit()
-
-    new_id = cursor.lastrowid
-
-    row = connection.execute(
-        """
-        SELECT id, title, done
-        FROM tasks
-        WHERE id = ?
-        """,
-        (new_id,),
-    ).fetchone()
-
-    connection.close()
-
-    return row_to_task(row)
+    return task_repository.create_task(task.title)
 
 
 # ---------------------------------------------------------------------------
@@ -193,61 +134,19 @@ def create_task(task: TaskCreate):
 
 @app.put("/tasks/{task_id}", summary="Update a task")
 def update_task(task_id: int, update: TaskUpdate):
-    connection = get_connection()
+    task = task_repository.update_task(
+        task_id,
+        title=update.title,
+        done=update.done,
+    )
 
-    existing = connection.execute(
-        """
-        SELECT id, title, done
-        FROM tasks
-        WHERE id = ?
-        """,
-        (task_id,),
-    ).fetchone()
-
-    if existing is None:
-        connection.close()
+    if task is None:
         raise HTTPException(
             status_code=404,
             detail=f"Task {task_id} not found",
         )
 
-    # Build the UPDATE dynamically, but only from known column names.
-    fields = []
-    parameters = []
-
-    if update.title is not None:
-        fields.append("title = ?")
-        parameters.append(update.title)
-
-    if update.done is not None:
-        fields.append("done = ?")
-        parameters.append(int(update.done))
-
-    # If the request contains no fields, return the existing task.
-    if fields:
-        parameters.append(task_id)
-
-        query = f"""
-            UPDATE tasks
-            SET {", ".join(fields)}
-            WHERE id = ?
-        """
-
-        connection.execute(query, parameters)
-        connection.commit()
-
-    row = connection.execute(
-        """
-        SELECT id, title, done
-        FROM tasks
-        WHERE id = ?
-        """,
-        (task_id,),
-    ).fetchone()
-
-    connection.close()
-
-    return row_to_task(row)
+    return task
 
 
 # ---------------------------------------------------------------------------
@@ -256,23 +155,9 @@ def update_task(task_id: int, update: TaskUpdate):
 
 @app.delete("/tasks/{task_id}", status_code=204, summary="Delete a task")
 def delete_task(task_id: int):
-    connection = get_connection()
+    deleted = task_repository.delete_task(task_id)
 
-    cursor = connection.execute(
-        """
-        DELETE FROM tasks
-        WHERE id = ?
-        """,
-        (task_id,),
-    )
-
-    connection.commit()
-
-    deleted = cursor.rowcount
-
-    connection.close()
-
-    if deleted == 0:
+    if not deleted:
         raise HTTPException(
             status_code=404,
             detail=f"Task {task_id} not found",
@@ -287,27 +172,7 @@ def delete_task(task_id: int):
 
 @app.get("/stats", summary="Task stats")
 def get_stats():
-    connection = get_connection()
-
-    row = connection.execute(
-        """
-        SELECT
-            COUNT(*) AS total,
-            COALESCE(SUM(CASE WHEN done = 1 THEN 1 ELSE 0 END), 0) AS done
-        FROM tasks
-        """
-    ).fetchone()
-
-    connection.close()
-
-    total = row["total"]
-    done = row["done"]
-
-    return {
-        "total": total,
-        "done": done,
-        "open": total - done,
-    }
+    return task_repository.get_stats()
 
 
 # ---------------------------------------------------------------------------
@@ -316,25 +181,7 @@ def get_stats():
 
 @app.post("/reset", summary="Reset to the 3 example tasks")
 def reset_tasks():
-    connection = get_connection()
-
-    connection.execute("DELETE FROM tasks")
-
-    connection.executemany(
-        """
-        INSERT INTO tasks (title, done)
-        VALUES (?, ?)
-        """,
-        [
-            ("Buy milk", False),
-            ("Walk the dog", True),
-            ("Finish CRUD assignment", False),
-        ],
-    )
-
-    connection.commit()
-
-    connection.close()
+    task_repository.reset_tasks()
 
     return {
         "message": "Tasks reset to the 3 example tasks"
