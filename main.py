@@ -87,7 +87,7 @@ def health_check():
 
 
 # ---------------------------------------------------------------------------
-# READ — backed by SQLite
+# READ
 # ---------------------------------------------------------------------------
 
 @app.get("/tasks", summary="List tasks (optionally filter/search)")
@@ -154,7 +154,7 @@ def get_task(task_id: int):
 
 
 # ---------------------------------------------------------------------------
-# CREATE — backed by SQLite
+# CREATE
 # ---------------------------------------------------------------------------
 
 @app.post("/tasks", status_code=201, summary="Create a task")
@@ -188,36 +188,97 @@ def create_task(task: TaskCreate):
 
 
 # ---------------------------------------------------------------------------
-# UPDATE / DELETE — still in-memory for now
+# UPDATE
 # ---------------------------------------------------------------------------
-
-tasks = [
-    {"id": 1, "title": "Buy milk", "done": False},
-    {"id": 2, "title": "Walk the dog", "done": True},
-    {"id": 3, "title": "Finish CRUD assignment", "done": False},
-]
-next_id = 4
-
 
 @app.put("/tasks/{task_id}", summary="Update a task")
 def update_task(task_id: int, update: TaskUpdate):
-    for t in tasks:
-        if t["id"] == task_id:
-            if update.title is not None:
-                t["title"] = update.title
-            if update.done is not None:
-                t["done"] = update.done
-            return t
-    raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    connection = get_connection()
 
+    existing = connection.execute(
+        """
+        SELECT id, title, done
+        FROM tasks
+        WHERE id = ?
+        """,
+        (task_id,),
+    ).fetchone()
+
+    if existing is None:
+        connection.close()
+        raise HTTPException(
+            status_code=404,
+            detail=f"Task {task_id} not found",
+        )
+
+    # Build the UPDATE dynamically, but only from known column names.
+    fields = []
+    parameters = []
+
+    if update.title is not None:
+        fields.append("title = ?")
+        parameters.append(update.title)
+
+    if update.done is not None:
+        fields.append("done = ?")
+        parameters.append(int(update.done))
+
+    # If the request contains no fields, return the existing task.
+    if fields:
+        parameters.append(task_id)
+
+        query = f"""
+            UPDATE tasks
+            SET {", ".join(fields)}
+            WHERE id = ?
+        """
+
+        connection.execute(query, parameters)
+        connection.commit()
+
+    row = connection.execute(
+        """
+        SELECT id, title, done
+        FROM tasks
+        WHERE id = ?
+        """,
+        (task_id,),
+    ).fetchone()
+
+    connection.close()
+
+    return row_to_task(row)
+
+
+# ---------------------------------------------------------------------------
+# DELETE
+# ---------------------------------------------------------------------------
 
 @app.delete("/tasks/{task_id}", status_code=204, summary="Delete a task")
 def delete_task(task_id: int):
-    for i, t in enumerate(tasks):
-        if t["id"] == task_id:
-            tasks.pop(i)
-            return
-    raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    connection = get_connection()
+
+    cursor = connection.execute(
+        """
+        DELETE FROM tasks
+        WHERE id = ?
+        """,
+        (task_id,),
+    )
+
+    connection.commit()
+
+    deleted = cursor.rowcount
+
+    connection.close()
+
+    if deleted == 0:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Task {task_id} not found",
+        )
+
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -250,13 +311,11 @@ def get_stats():
 
 
 # ---------------------------------------------------------------------------
-# BONUS: Reset — reset both the DB and the in-memory list
+# BONUS: Reset
 # ---------------------------------------------------------------------------
 
 @app.post("/reset", summary="Reset to the 3 example tasks")
 def reset_tasks():
-    global tasks, next_id
-
     connection = get_connection()
 
     connection.execute("DELETE FROM tasks")
@@ -274,16 +333,12 @@ def reset_tasks():
     )
 
     connection.commit()
+
     connection.close()
 
-    tasks = [
-        {"id": 1, "title": "Buy milk", "done": False},
-        {"id": 2, "title": "Walk the dog", "done": True},
-        {"id": 3, "title": "Finish CRUD assignment", "done": False},
-    ]
-    next_id = 4
-
-    return {"message": "Tasks reset to the 3 example tasks"}
+    return {
+        "message": "Tasks reset to the 3 example tasks"
+    }
 
 
 # ---------------------------------------------------------------------------
