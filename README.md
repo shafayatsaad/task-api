@@ -69,6 +69,45 @@ SELECT * FROM tasks;
 
 This query returns all tasks stored in the SQLite database.
 
+## SQL Practice
+
+You can run SQL directly against the database to verify the data. Open a terminal in the project directory and use Python's built-in `sqlite3` module:
+
+```bash
+python -c "import sqlite3; print(sqlite3.connect('tasks.db').execute('SELECT * FROM tasks').fetchall())"
+```
+
+Or use the interactive shell:
+
+```bash
+python -c "import sqlite3; c = sqlite3.connect('tasks.db'); [print(r) for r in c.execute('SELECT * FROM tasks')]"
+```
+
+### Useful queries
+
+```sql
+-- List all tasks
+SELECT * FROM tasks;
+
+-- Only completed tasks
+SELECT * FROM tasks WHERE done = 1;
+
+-- Only open tasks
+SELECT * FROM tasks WHERE done = 0;
+
+-- Search by title
+SELECT * FROM tasks WHERE LOWER(title) LIKE '%milk%';
+
+-- Count tasks
+SELECT COUNT(*) FROM tasks;
+
+-- Task statistics
+SELECT
+    COUNT(*) AS total,
+    SUM(CASE WHEN done = 1 THEN 1 ELSE 0 END) AS done
+FROM tasks;
+```
+
 ## Persistence
 
 Unlike the original in-memory implementation, tasks now survive server restarts because they are stored in `tasks.db`.
