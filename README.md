@@ -116,23 +116,23 @@ Compose passes `SUPABASE_URL` and `SUPABASE_KEY` into the API container while Po
 
 ## Authentication API reference
 
-| Method | Endpoint | Auth | Expected success |
-|---|---|---:|---|
-| POST | `/auth/signup` | No | `201 Created` |
-| POST | `/auth/login` | No | `200 OK` |
-| POST | `/auth/logout` | Bearer JWT | `204 No Content` |
-| GET | `/public/info` | No | `200 OK` |
-| GET | `/protected/profile` | Bearer JWT | `200 OK` |
-| GET | `/protected/dashboard` | Bearer JWT | `200 OK` |
+| Method | Endpoint               |       Auth | Expected success |
+| ------ | ---------------------- | ---------: | ---------------- |
+| POST   | `/auth/signup`         |         No | `201 Created`    |
+| POST   | `/auth/login`          |         No | `200 OK`         |
+| POST   | `/auth/logout`         | Bearer JWT | `204 No Content` |
+| GET    | `/public/info`         |         No | `200 OK`         |
+| GET    | `/protected/profile`   | Bearer JWT | `200 OK`         |
+| GET    | `/protected/dashboard` | Bearer JWT | `200 OK`         |
 
 ### Required error behavior
 
-| Situation | Status | Response |
-|---|---:|---|
-| Missing signup/login fields | `400` | JSON error |
-| Invalid login credentials | `401` | `{"error":"Invalid login credentials"}` |
-| Missing Authorization header | `401` | `{"error":"Access token required"}` |
-| Invalid/expired JWT | `401` | `{"error":"Invalid or expired token"}` |
+| Situation                    | Status | Response                                |
+| ---------------------------- | -----: | --------------------------------------- |
+| Missing signup/login fields  |  `400` | JSON error                              |
+| Invalid login credentials    |  `401` | `{"error":"Invalid login credentials"}` |
+| Missing Authorization header |  `401` | `{"error":"Access token required"}`     |
+| Invalid/expired JWT          |  `401` | `{"error":"Invalid or expired token"}`  |
 
 ## 4. Test the authentication flow
 
@@ -145,7 +145,7 @@ curl -i http://localhost:8000/public/info
 Expected:
 
 ```json
-{"message":"Welcome stranger! This info is public."}
+{ "message": "Welcome stranger! This info is public." }
 ```
 
 ### Protected route without a token
@@ -196,7 +196,7 @@ Change one character in the token and run the same command.
 Expected status: `401` with:
 
 ```json
-{"error":"Invalid or expired token"}
+{ "error": "Invalid or expired token" }
 ```
 
 ### Protected dashboard
@@ -240,17 +240,17 @@ Workflow:
 
 ## Existing Task API endpoints
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/` | API information |
-| GET | `/health` | Health check |
-| GET | `/tasks` | List tasks |
-| POST | `/tasks` | Create task |
-| GET | `/tasks/{id}` | Get task |
-| PUT | `/tasks/{id}` | Update task |
-| DELETE | `/tasks/{id}` | Delete task |
-| GET | `/stats` | Task statistics |
-| POST | `/reset` | Reset example tasks |
+| Method | Endpoint      | Description         |
+| ------ | ------------- | ------------------- |
+| GET    | `/`           | API information     |
+| GET    | `/health`     | Health check        |
+| GET    | `/tasks`      | List tasks          |
+| POST   | `/tasks`      | Create task         |
+| GET    | `/tasks/{id}` | Get task            |
+| PUT    | `/tasks/{id}` | Update task         |
+| DELETE | `/tasks/{id}` | Delete task         |
+| GET    | `/stats`      | Task statistics     |
+| POST   | `/reset`      | Reset example tasks |
 
 ## Security notes
 
@@ -261,21 +261,31 @@ Workflow:
 - Do not use a Supabase service-role key in this assignment's client-facing configuration.
 - The access token should be treated as a credential and never pasted into GitHub, screenshots, or the README.
 
-## Stage / commit checklist
+## Git history
 
-The assignment asks for at least six meaningful commits. Suggested history:
+The repository history shows the full progression from the earlier database
+assignment through the Week 4 auth work:
 
 ```text
-Stage 0: setup server and supabase client
-Stage 1: signup and login routes working
-Stage 2: public route and unverified protected route
-Stage 3: profile route token verification
-Stage 4: auth middleware and logout endpoint
-Stage 5: Swagger UI documentation with bearer auth
-Stage 6: publish to GitHub and write README
+Database assignment (Stage 0–5):
+  Stage 0: create database and database
+  Stage 1: database read endpoints
+  Stage 2: insert into database
+  Stage 3: update and delete with database
+  Stage 4: explored database
+  Stage 5: database documentation
+
+Week 4 auth work:
+  Create auth.py
+  Update main.py
+  Update requirements.txt
+  Update .env.example
+  Update README.md
+  Update compose.yaml
 ```
 
-If the work is being submitted as one final archive rather than through the Git history, keep the commit history in the GitHub repository and use the checklist above to demonstrate the stages.
+The history is published to GitHub and demonstrates meaningful, incremental
+progress from the original Task API through the Supabase authentication work.
 
 ## Assignment completion checklist
 
